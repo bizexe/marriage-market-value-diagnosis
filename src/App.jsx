@@ -274,7 +274,9 @@ export default function App(){
     if(!supabase||!scores||!hen||!rankInfo)return;
     try{
       const ans=Object.values(answers);
-      const{data,error}=await supabase.from('diagnosis_results').insert({
+      const clientId=crypto.randomUUID();
+      const{error}=await supabase.from('diagnosis_results').insert({
+        id:clientId,
         nickname, gender:ans[0],
         q_age:ans[1], q_income:ans[2], q_education:ans[3], q_appearance:ans[4],
         q_hobby:ans[5], q_communication:ans[6], q_priority:ans[7], q_flexibility:ans[8],
@@ -287,9 +289,9 @@ export default function App(){
         hensachi_literacy:hen.axes.LITERACY, hensachi_life:hen.axes.LIFE, hensachi_timing:hen.axes.TIMING,
         rank:rankInfo.rank,
         user_agent:navigator.userAgent, referrer:document.referrer||null,
-      }).select('id').single();
-      if(!error&&data)setRecordId(data.id);
-      else if(error)console.error('Supabase insert error:',error);
+      });
+      if(!error)setRecordId(clientId);
+      else console.error('Supabase insert error:',error);
     }catch(e){console.error('Supabase exception:',e);}
   },[answers,scores,hen,rankInfo,nickname]);
 

@@ -129,16 +129,38 @@ function calc(answers){
   return r;
 }
 
-function getRank(t){
-  if(t>=85)return{rank:"S",name:"プラチナ婚活者",color:"#C4167A",emoji:"👑",img:IMG.chibiJoy};
-  if(t>=70)return{rank:"A",name:"ゴールド婚活者",color:"#D4527A",emoji:"✨",img:IMG.peace};
-  if(t>=55)return{rank:"B",name:"シルバー婚活者",color:"#B0607A",emoji:"💎",img:IMG.encourage};
-  if(t>=40)return{rank:"C",name:"ブロンズ婚活者",color:"#9A7080",emoji:"🌸",img:IMG.fist};
+/* ── 偏差値変換 ── */
+/* 想定母集団パラメータ（素点の平均・標準偏差）
+   中間的な回答を選んだ場合の素点合計が約58〜62になる設計のため、
+   平均60・SD13 で正規分布に変換する。軸別は平均11・SD3.5。 */
+const POP_MEAN = 72;
+const POP_SD   = 14;
+const AX_POP_MEAN = 14;
+const AX_POP_SD   = 3.5;
+
+function toHensachi(raw, mean, sd) {
+  const h = 50 + 10 * (raw - mean) / sd;
+  return Math.round(Math.max(25, Math.min(75, h)));
+}
+
+function calcHensachi(scores) {
+  const rawTotal = AX.reduce((s, k) => s + scores[k], 0);
+  const total = toHensachi(rawTotal, POP_MEAN, POP_SD);
+  const axes = {};
+  AX.forEach(k => { axes[k] = toHensachi(scores[k], AX_POP_MEAN, AX_POP_SD); });
+  return { total, axes, rawTotal };
+}
+
+function getRank(hensachi){
+  if(hensachi>=65)return{rank:"S",name:"プラチナ婚活者",color:"#C4167A",emoji:"👑",img:IMG.chibiJoy};
+  if(hensachi>=57)return{rank:"A",name:"ゴールド婚活者",color:"#D4527A",emoji:"✨",img:IMG.peace};
+  if(hensachi>=50)return{rank:"B",name:"シルバー婚活者",color:"#B0607A",emoji:"💎",img:IMG.encourage};
+  if(hensachi>=43)return{rank:"C",name:"ブロンズ婚活者",color:"#9A7080",emoji:"🌸",img:IMG.fist};
   return{rank:"D",name:"スタート婚活者",color:"#8B7D8B",emoji:"🌱",img:IMG.sit};
 }
 
-function getInsight(sc){
-  const e=AX.map(k=>[k,sc[k]]);e.sort((a,b)=>b[1]-a[1]);
+function getInsight(axHensachi){
+  const e=AX.map(k=>[k,axHensachi[k]]);e.sort((a,b)=>b[1]-a[1]);
   return{best:e[0][0],bestV:e[0][1],worst:e[e.length-1][0],worstV:e[e.length-1][1]};
 }
 
@@ -241,9 +263,9 @@ export default function App(){
   },[anim,step]);
 
   const scores=step>totalQ?calc(Object.values(answers)):null;
-  const total=scores?AX.reduce((s,k)=>s+scores[k],0):0;
-  const rankInfo=scores?getRank(total):null;
-  const insight=scores?getInsight(scores):null;
+  const hen=scores?calcHensachi(scores):null;
+  const rankInfo=hen?getRank(hen.total):null;
+  const insight=hen?getInsight(hen.axes):null;
 
   /* ── styles ── */
   const wrap={
@@ -416,8 +438,9 @@ export default function App(){
   }
 
   /* ──── Result ──── */
-  if(step===totalQ+2&&scores){
-    const stars=total>=80?"★★★★★":total>=65?"★★★★☆":total>=50?"★★★☆☆":total>=35?"★★☆☆☆":"★☆☆☆☆";
+  if(step===totalQ+2&&hen){
+    const h=hen.total;
+    const stars=h>=65?"★★★★★":h>=57?"★★★★☆":h>=50?"★★★☆☆":h>=43?"★★☆☆☆":"★☆☆☆☆";
     return(
       <div style={wrap}>
         <SakuraPetals/>
@@ -430,7 +453,7 @@ export default function App(){
 
           <div style={{textAlign:"center",position:"relative",margin:"8px 0 16px"}}>
             <div style={{fontSize:60,fontWeight:900,color:rankInfo.color,lineHeight:1,fontFamily:"'Noto Sans JP',sans-serif"}}>
-              {total}
+              {hen.total}
             </div>
             <div style={{
               display:"inline-block",background:`${rankInfo.color}12`,color:rankInfo.color,
@@ -445,9 +468,9 @@ export default function App(){
           <div style={{display:"flex",alignItems:"flex-end",gap:10,marginBottom:16,justifyContent:"center"}}>
             <img src={rankInfo.img} alt="" style={{width:90,height:90,objectFit:"contain"}}/>
             <Bubble text={
-              total>=70?"すごい！婚活力バッチリだね！✨":
-              total>=55?"いい感じ！もう少しで上のランクだよ💪":
-              total>=40?"伸びしろたっぷり！一緒に頑張ろう🌸":
+              h>=65?"すごい！婚活力バッチリだね！✨":
+              h>=57?"いい感じ！もう少しで上のランクだよ💪":
+              h>=50?"伸びしろたっぷり！一緒に頑張ろう🌸":
               "ここからがスタート！応援してるよ🌱"
             } dir="left"/>
           </div>
@@ -464,12 +487,12 @@ export default function App(){
                 <span style={{fontSize:11,color:"#6B3050",width:86,flexShrink:0,fontWeight:700}}>{AX_NAME[k]}</span>
                 <div style={{flex:1,height:8,background:"rgba(255,183,197,0.15)",borderRadius:4,overflow:"hidden"}}>
                   <div style={{
-                    width:`${(scores[k]/AX_MAX)*100}%`,height:"100%",borderRadius:4,
+                    width:`${Math.max(0,Math.min(100,(hen.axes[k]-25)/50*100))}%`,height:"100%",borderRadius:4,
                     background:k===insight.best?"linear-gradient(90deg,#FFB7C5,#E84B8A)":"rgba(196,22,122,0.2)",
                     transition:"width 0.8s ease",
                   }}/>
                 </div>
-                <span style={{fontSize:11,color:"#8B5070",fontWeight:700,width:34,textAlign:"right"}}>{scores[k]}/{AX_MAX}</span>
+                <span style={{fontSize:11,color:"#8B5070",fontWeight:700,width:28,textAlign:"right"}}>{hen.axes[k]}</span>
               </div>
             ))}
           </div>
@@ -478,7 +501,7 @@ export default function App(){
           <div style={{background:"rgba(255,183,197,0.1)",borderRadius:14,padding:"16px 14px",marginBottom:12,border:"1px solid rgba(255,183,197,0.2)"}}>
             <p style={{fontSize:12,fontWeight:700,color:"#C4167A",margin:"0 0 4px"}}>🌸 あなたの強み</p>
             <p style={{fontSize:13,color:"#5A3050",margin:0,lineHeight:1.7}}>
-              {AX_NAME[insight.best]}が{insight.bestV>=15?"非常に高く":"高く"}、婚活市場で大きなアドバンテージになります。この強みを活かした戦略が成婚への近道です。
+              {AX_NAME[insight.best]}が{insight.bestV>=60?"非常に高く":"高く"}、婚活市場で大きなアドバンテージになります。この強みを活かした戦略が成婚への近道です。
             </p>
           </div>
 
@@ -486,7 +509,7 @@ export default function App(){
           <div style={{background:"rgba(139,80,112,0.05)",borderRadius:14,padding:"16px 14px",marginBottom:12,border:"1px solid rgba(139,80,112,0.08)"}}>
             <p style={{fontSize:12,fontWeight:700,color:"#8B5070",margin:"0 0 4px"}}>💡 あなたの課題</p>
             <p style={{fontSize:13,color:"#5A3050",margin:0,lineHeight:1.7}}>
-              {AX_NAME[insight.worst]}に改善の余地があります。{insight.worstV<=8?"ここを強化するだけで、出会いの可能性が大きく広がります":"少し意識するだけで、さらに上のランクが見えてきます"}。
+              {AX_NAME[insight.worst]}に改善の余地があります。{insight.worstV<=45?"ここを強化するだけで、出会いの可能性が大きく広がります":"少し意識するだけで、さらに上のランクが見えてきます"}。
             </p>
           </div>
 

@@ -113,7 +113,7 @@ const QUESTIONS = [
 ];
 
 const AX = ["SPEC","HUMAN","LITERACY","LIFE","TIMING"];
-const AX_NAME = {SPEC:"スペック力",HUMAN:"人間力",LITERACY:"婚活リテラシー",LIFE:"ライフスタイル",TIMING:"タイミング適性"};
+const AX_NAME = {SPEC:"ステータス",HUMAN:"人間力",LITERACY:"婚活リテラシー",LIFE:"ライフスタイル",TIMING:"婚活タイミング"};
 const AX_MAX = 20;
 
 function calc(answers){
@@ -369,16 +369,10 @@ export default function App(){
 
           <div style={{background:"rgba(255,183,197,0.12)",borderRadius:14,padding:"14px 16px",marginBottom:18,border:"1px solid rgba(255,183,197,0.2)"}}>
             <p style={{fontSize:13,color:"#6B3050",margin:0,lineHeight:1.8}}>
-              <strong>12問・約3分</strong>で完了！<br/>
-              5つの軸であなたの婚活力を可視化して、<br/>
+              かんたんな質問に答えるだけで、<br/>
+              あなたの婚活力を可視化して、<br/>
               強み・課題・出会いの可能性をお伝えします✨
             </p>
-          </div>
-
-          <div style={{display:"flex",gap:5,justifyContent:"center",marginBottom:18,flexWrap:"wrap"}}>
-            {Object.values(AX_NAME).map(n=>(
-              <span key={n} style={{fontSize:10,background:"rgba(232,75,138,0.08)",color:"#C4167A",padding:"3px 9px",borderRadius:20,fontWeight:700}}>{n}</span>
-            ))}
           </div>
 
           <button style={cta} onClick={()=>setStep(1)}>

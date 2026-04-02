@@ -405,11 +405,11 @@ export default function Admin() {
                   <th style={th}>年収</th>
                   <th style={th}>偏差値</th>
                   <th style={th}>ランク</th>
-                  <th style={th}>スペック</th>
+                  <th style={th}>ステータス</th>
                   <th style={th}>人間力</th>
                   <th style={th}>リテラシー</th>
                   <th style={th}>ライフ</th>
-                  <th style={th}>タイミング</th>
+                  <th style={th}>婚活タイミング</th>
                   <th style={th}>CTA</th>
                   <th style={th}>LINE</th>
                 </tr>

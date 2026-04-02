@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { supabase } from "./lib/supabase";
 
 /* ──────────── image map ──────────── */
 const IMG = {
@@ -251,6 +252,7 @@ export default function App(){
   const[sel,setSel]=useState(null);
   const[anim,setAnim]=useState(false);
   const[fadeIn,setFadeIn]=useState(true);
+  const[recordId,setRecordId]=useState(null);
 
   useEffect(()=>{setFadeIn(false);const t=setTimeout(()=>setFadeIn(true),60);return()=>clearTimeout(t);},[step]);
 
@@ -266,6 +268,41 @@ export default function App(){
   const hen=scores?calcHensachi(scores):null;
   const rankInfo=hen?getRank(hen.total):null;
   const insight=hen?getInsight(hen.axes):null;
+
+  /* ── Supabase: 結果保存 ── */
+  const saveResult=useCallback(async()=>{
+    if(!supabase||!scores||!hen||!rankInfo)return;
+    try{
+      const ans=Object.values(answers);
+      const{data,error}=await supabase.from('diagnosis_results').insert({
+        nickname, gender:ans[0],
+        q_age:ans[1], q_income:ans[2], q_education:ans[3], q_appearance:ans[4],
+        q_hobby:ans[5], q_communication:ans[6], q_priority:ans[7], q_flexibility:ans[8],
+        q_timeline:ans[9], q_experience:ans[10], q_satisfaction:ans[11],
+        raw_total:hen.rawTotal,
+        score_spec:scores.SPEC, score_human:scores.HUMAN, score_literacy:scores.LITERACY,
+        score_life:scores.LIFE, score_timing:scores.TIMING,
+        hensachi:hen.total,
+        hensachi_spec:hen.axes.SPEC, hensachi_human:hen.axes.HUMAN,
+        hensachi_literacy:hen.axes.LITERACY, hensachi_life:hen.axes.LIFE, hensachi_timing:hen.axes.TIMING,
+        rank:rankInfo.rank,
+        user_agent:navigator.userAgent, referrer:document.referrer||null,
+      }).select('id').single();
+      if(!error&&data)setRecordId(data.id);
+      else if(error)console.error('Supabase insert error:',error);
+    }catch(e){console.error('Supabase exception:',e);}
+  },[answers,scores,hen,rankInfo,nickname]);
+
+  /* ── Supabase: CTAクリック記録 ── */
+  const trackCta=useCallback(async(field)=>{
+    if(!supabase||!recordId)return;
+    await supabase.from('diagnosis_results').update({[field]:true}).eq('id',recordId);
+  },[recordId]);
+
+  /* ── 結果画面遷移時にDB保存 ── */
+  useEffect(()=>{
+    if(step===totalQ+2&&scores&&hen&&rankInfo&&!recordId){saveResult();}
+  },[step,scores,hen,rankInfo,recordId,saveResult,totalQ]);
 
   /* ── styles ── */
   const wrap={
@@ -429,7 +466,7 @@ export default function App(){
           />
           <button style={{...cta,opacity:nickname.trim()?1:0.4}}
             disabled={!nickname.trim()}
-            onClick={()=>nickname.trim()&&setStep(totalQ+2)}>
+            onClick={()=>{if(nickname.trim()){setStep(totalQ+2);}}}>
             🌸 結果を見る
           </button>
         </div>
@@ -526,12 +563,12 @@ export default function App(){
             <Bubble text="あなたに合った婚活プラン、一緒に考えよう！" dir="left"/>
           </div>
 
-          <button style={cta}>
+          <button style={cta} onClick={()=>trackCta('clicked_cta')}>
             🌸 アドバイザーに相談してみる
           </button>
           <p style={sub}>※無理な勧誘は一切いたしません</p>
 
-          <button style={{
+          <button onClick={()=>trackCta('clicked_line')} style={{
             width:"100%",padding:"14px",borderRadius:16,border:"none",marginTop:14,
             background:"#06C755",color:"#fff",fontSize:15,fontWeight:700,
             cursor:"pointer",fontFamily:"inherit",
@@ -543,7 +580,7 @@ export default function App(){
           </button>
 
           <div style={{marginTop:18,textAlign:"center"}}>
-            <button onClick={()=>{setStep(0);setAnswers({});setNickname("");}}
+            <button onClick={()=>{setStep(0);setAnswers({});setNickname("");setRecordId(null);}}
               style={{background:"none",border:"none",color:"#B08090",fontSize:12,cursor:"pointer",fontFamily:"inherit",textDecoration:"underline"}}>
               もう一度診断する
             </button>
